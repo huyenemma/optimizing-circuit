@@ -45,7 +45,7 @@ def cancel_adj_cnot(circuit):
         :return: new circuit
         """
     opt_circuit = Circuit()
-    # try to get used to git :) 
+    # try to get used to git :)
     return opt_circuit
 
 
