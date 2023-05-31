@@ -40,18 +40,89 @@ def cancel_adj_h(circuit):
 
 def cancel_adj_cnot(circuit):
     """
-        Apply the template c: a sequence of two Hadamard gate is cancelled
-        :param circuit: a circuit to optimize
-        :return: new circuit
-        """
+    Apply the template c: a sequence of two CNOT gates is cancelled
+    :param circuit: a circuit to optimize
+    :return: new circuit
+    """
     opt_circuit = Circuit()
-    # try to get used to git :)
+    # dictionary to keep track CNOT gates on tuple (control, target) qubits in circuit
+    cnot_gates = {}
+    prev_op = None
+    for moment in circuit:
+        for op in moment:
+            if isinstance(op.gate, CXPowGate):
+                control = op.qubits[0]
+                target = op.qubits[1]
+                if (control, target) in cnot_gates.keys():
+                    del cnot_gates[(control, target)]
+                    continue  # Skip adding the current CNOT gate
+                else:
+                    # store the current CNOT gate into dictionary
+                    cnot_gates[(control, target)] = op
+            else:
+                qubit = op.qubits[0]
+                is_qb_in_cnot_gates = any(qubit in key for key in cnot_gates.keys())
+                # if current operation is not CNOT, the previous CNOT (if existed) should be added
+                if isinstance(prev_op.gate, CXPowGate) and prev_op is not None and is_qb_in_cnot_gates:
+                    control = prev_op.qubits[0]
+                    target = prev_op.qubits[1]
+                    opt_circuit.append(prev_op)
+                    del cnot_gates[(control, target)]
+
+                # add the current operation
+                opt_circuit.append(op)
+            prev_op = op
+
+    # add any remaining CNOT gates in the dictionary to the optimized circuit
+    for operation in cnot_gates.values():
+        if operation is not None:
+            opt_circuit.append(operation)
+
+    return opt_circuit
+
+
+def two_cx_to_toffoli(circuit):
+    opt_circuit = Circuit()
+    # dictionary to keep track CNOT gates on control qubits in circuit
+    cnot_gates = {}
+    prev_op = None
+    for moment in circuit:
+        for op in moment:
+            if isinstance(op.gate, CXPowGate):
+                control = op.qubits[0]
+                target = op.qubits[1]
+                if control in cnot_gates.keys():
+                    opt_circuit.append(TOFFOLI(control, cnot_gates[control].qubits[1], target))
+                    del cnot_gates[control]
+                    continue  # Skip adding the current CNOT gate
+                else:
+                    # store the current CNOT gate into dictionary
+                    cnot_gates[control] = op
+            else:
+                qubit = op.qubits[0]
+                is_qb_in_cnot_gates = any(qubit in key for key in cnot_gates.keys())
+                # if current operation is not CNOT, the previous CNOT (if existed) should be added
+                if isinstance(prev_op.gate, CXPowGate) and prev_op is not None and is_qb_in_cnot_gates:
+                    control = prev_op.qubits[0]
+                    target = prev_op.qubits[1]
+                    opt_circuit.append(prev_op)
+                    del cnot_gates[(control, target)]
+
+                # add the current operation
+                opt_circuit.append(op)
+            prev_op = op
+
+    # add any remaining CNOT gates in the dictionary to the optimized circuit
+    for operation in cnot_gates.values():
+        if operation is not None:
+            opt_circuit.append(operation)
+
     return opt_circuit
 
 
 def flip_cnot(circuit):
     """
-    Apply template e. Flip a cnot gate and add surrounding H gates on the qubit the CX gate applied.
+    Apply template e. Flip a cnot gate and add surrounding H gates on the qubit the CX gate applied
     :param circuit
     :return:
     """
@@ -95,8 +166,8 @@ def _is_subsequence(subsequence, sequence):
 
 def reverse_cnot_with_hgate(circuit):
     """
-    Apply template f. When both control and target qubits of a CX gate sandwiched by Hadamard gates, we can deleted
-    sandwiched the H gates and flip CX gate to optimize.
+    Apply template f. When both control and target qubits of a CX gate sandwiched by Hadamard gates, we can delete
+    sandwiched the H gates and flip CX gate to optimize
     :param circuit
     :return: new optimized circuit
     """
