@@ -1,5 +1,12 @@
 from cirq import *
-from customGate import CXXX, CXX
+from customGate import CXX
+
+
+def merge_flip_cnot(circuit):
+    # opt_circuit = Circuit()
+
+    opt_circuit = synchronize_terminal_measurements(circuit)
+    return opt_circuit
 
 
 def cancel_adj_h(circuit):
@@ -48,47 +55,6 @@ def cancel_adj_cnot(circuit):
     opt_circuit = Circuit()
     # dictionary to keep track CNOT gates on tuple (control, target) qubits in circuit
     cnot_gates = {}
-    prev_op = None
-    for moment in circuit:
-        for op in moment:
-            if isinstance(op.gate, CXPowGate):
-                control = op.qubits[0]
-                target = op.qubits[1]
-                if (control, target) in cnot_gates.keys():
-                    del cnot_gates[(control, target)]
-                    continue  # Skip adding the current CNOT gate
-                else:
-                    # store the current CNOT gate into dictionary
-                    cnot_gates[(control, target)] = op
-            else:
-                qubit = op.qubits[0]
-                is_qb_in_cnot_gates = any(qubit in key for key in cnot_gates.keys())
-                # if current operation is not CNOT, the previous CNOT (if existed) should be added
-                if is_qb_in_cnot_gates:
-                    opt_circuit.append(cnot_gates[(control, target)])
-                    del cnot_gates[(control, target)]
-
-                # add the current operation
-                opt_circuit.append(op)
-            prev_op = op
-
-    # add any remaining CNOT gates in the dictionary to the optimized circuit
-    for operation in cnot_gates.values():
-        if operation is not None:
-            opt_circuit.append(operation)
-
-    return opt_circuit
-
-
-def cancel_adj_cnot(circuit):
-    """
-    Apply the template c: a sequence of two CNOT gates is cancelled
-    :param circuit: a circuit to optimize
-    :return: new circuit
-    """
-    opt_circuit = Circuit()
-    # dictionary to keep track CNOT gates on tuple (control, target) qubits in circuit
-    cnot_gates = {}
     for moment in circuit:
         for op in moment:
             if isinstance(op.gate, CXPowGate):
@@ -107,16 +73,12 @@ def cancel_adj_cnot(circuit):
                         del cnot_gates[(pre_control, pre_target)]
             else:
                 qubit = op.qubits[0]
-                is_qb_in_cnot_gates = False
                 for key in cnot_gates.keys():
                     control, target = key
-                    if qubit == control or qubit == target:
-                        is_qb_in_cnot_gates = True
+                    if qubit == control or qubit == target:  # if qubit involve in a CX gate
+                        opt_circuit.append(cnot_gates[(control, target)])
+                        del cnot_gates[(control, target)]
                         break
-                # if current operation is not CNOT, the previous CNOT (if existed) should be added
-                if is_qb_in_cnot_gates:
-                    opt_circuit.append(cnot_gates[(control, target)])
-                    del cnot_gates[(control, target)]
 
                 # add the current operation
                 opt_circuit.append(op)
@@ -130,6 +92,11 @@ def cancel_adj_cnot(circuit):
 
 
 def two_cx_to_cxx(circuit):
+    """
+        Apply the template d: a sequence of two CNOT gates that share the same control qubit transforms to CXX gate
+        :param circuit: a circuit to optimize
+        :return: new circuit
+        """
     opt_circuit = Circuit()
     # dictionary to keep track CNOT gates on control qubits in circuit
     cnot_gates = {}
@@ -156,16 +123,12 @@ def two_cx_to_cxx(circuit):
                             del cnot_gates[(pre_control, pre_target)]
             else:
                 qubit = op.qubits[0]
-                is_qb_in_cnot_gates = False
                 for key in cnot_gates.keys():
                     control, target = key
                     if qubit == control or qubit == target:
-                        is_qb_in_cnot_gates = True
+                        opt_circuit.append(cnot_gates[(control, target)])
+                        del cnot_gates[(control, target)]
                         break
-                # if current operation is not CNOT, the previous CNOT (if existed) should be added
-                if is_qb_in_cnot_gates:
-                    opt_circuit.append(cnot_gates[(control, target)])
-                    del cnot_gates[(control, target)]
 
                 # add the current operation
                 opt_circuit.append(op)
@@ -196,31 +159,6 @@ def flip_cnot(circuit):
     return opt_circuit
 
 
-# a helper function while using template f
-def _is_subsequence(subsequence, sequence):
-    sub_len = len(subsequence)
-    seq_len = len(sequence)
-
-    # If the subsequence is longer than the sequence, it cannot be a subsequence
-    if sub_len > seq_len:
-        return False
-
-    # Initialize pointers for the subsequence and sequence
-    sub_ptr = 0
-    seq_ptr = 0
-
-    while seq_ptr < seq_len:
-        # If the elements match, move both pointers forward
-        if subsequence[sub_ptr] is sequence[seq_ptr].gate:
-            sub_ptr += 1
-            # If we have found all elements of the subsequence, it is present
-            if sub_ptr == sub_len:
-                return True
-        seq_ptr += 1
-
-    return False
-
-
 def reverse_cnot_with_hgate(circuit):
     """
     Apply template f. When both control and target qubits of a CX gate sandwiched by Hadamard gates, we can delete
@@ -238,6 +176,8 @@ def reverse_cnot_with_hgate(circuit):
                 gates_by_qubit[qb].append(op)
 
     subsequence = [H, CNOT, H]
+
+    # store all the qubit which has the pattern
     q_has_subsequence = []
     for key in gates_by_qubit:
         if _is_subsequence(subsequence, gates_by_qubit[key]):
@@ -272,3 +212,28 @@ def reverse_cnot_with_hgate(circuit):
                 opt_circuit.append(values[i])
 
     return opt_circuit
+
+
+# a helper function while using template f
+def _is_subsequence(subsequence, sequence):
+    sub_len = len(subsequence)
+    seq_len = len(sequence)
+
+    # If the subsequence is longer than the sequence, it cannot be a subsequence
+    if sub_len > seq_len:
+        return False
+
+    # Initialize pointers for the subsequence and sequence
+    sub_ptr = 0
+    seq_ptr = 0
+
+    while seq_ptr < seq_len:
+        # If the elements match, move both pointers forward
+        if subsequence[sub_ptr] is sequence[seq_ptr].gate:
+            sub_ptr += 1
+            # If we have found all elements of the subsequence, it is present
+            if sub_ptr == sub_len:
+                return True
+        seq_ptr += 1
+
+    return False
