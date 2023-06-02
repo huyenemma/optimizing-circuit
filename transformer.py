@@ -1,7 +1,9 @@
+import cirq
 from cirq import *
 from customGate import CXX
 
 
+@cirq.transformer
 def merge_flip_cnot(circuit):
     # opt_circuit = Circuit()
 
@@ -9,6 +11,7 @@ def merge_flip_cnot(circuit):
     return opt_circuit
 
 
+@cirq.transformer
 def cancel_adj_h(circuit):
     """
     Apply the template b: a sequence of two Hadamard gate is cancelled
@@ -46,6 +49,7 @@ def cancel_adj_h(circuit):
     return opt_circuit
 
 
+@cirq.transformer
 def cancel_adj_cnot(circuit):
     """
     Apply the template c: a sequence of two CNOT gates is cancelled
@@ -91,6 +95,7 @@ def cancel_adj_cnot(circuit):
     return opt_circuit
 
 
+@cirq.transformer
 def two_cx_to_cxx(circuit):
     """
         Apply the template d: a sequence of two CNOT gates that share the same control qubit transforms to CXX gate
@@ -140,6 +145,7 @@ def two_cx_to_cxx(circuit):
     return opt_circuit
 
 
+@cirq.transformer
 def flip_cnot(circuit):
     """
     Apply template e. Flip a cnot gate and add surrounding H gates on the qubit the CX gate applied
@@ -159,6 +165,7 @@ def flip_cnot(circuit):
     return opt_circuit
 
 
+@cirq.transformer
 def reverse_cnot_with_hgate(circuit):
     """
     Apply template f. When both control and target qubits of a CX gate sandwiched by Hadamard gates, we can delete
