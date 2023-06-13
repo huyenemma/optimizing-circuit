@@ -206,7 +206,6 @@ def two_cx_to_cxx(circuit):
                     cnot_gates[(control, target)] = op
                 else:
                     pre_control, pre_target = list(cnot_gates.keys())[0]
-
                     if pre_control == control and pre_target != target:
                         opt_circuit.append(CXX().on(control, pre_target, target))
                         del cnot_gates[(control, pre_target)]
