@@ -60,8 +60,15 @@ def merge_flip_cnot(circuit):
             if isinstance(op.gate, CXPowGate):
                 control = op.qubits[0]
                 target = op.qubits[1]
-                if len(cnot_gates) <= 1:
+                if len(cnot_gates) == 0:
                     cnot_gates[(control, target)] = op
+                    break
+                elif len(cnot_gates) == 1:
+                    cnot_gates[(control, target)] = op
+                    control1, target1 = list(cnot_gates.keys())[0]
+                    if control1 != control or target1 == target:
+                        final_circuit.append(cnot_gates[(control1, target1)])
+                        del cnot_gates[(control1, target1)]
                     break
                 else:
                     control1, target1 = list(cnot_gates.keys())[0]
@@ -80,7 +87,6 @@ def merge_flip_cnot(circuit):
                         if control2 != control or target2 == target:
                             final_circuit.append(cnot_gates[(control2, target2)])
                             del cnot_gates[(control2, target2)]
-                            cnot_gates[(control, target)] = op
             else:
                 qubit = op.qubits[0]
                 for key in cnot_gates.keys():
