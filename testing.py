@@ -1,3 +1,5 @@
+import matplotlib.pyplot as plt
+
 from transformer import *
 from randomCircuit import *
 
@@ -35,11 +37,15 @@ def simple_test(template):
     print("\nTesting template", template)
     qubits = [LineQubit(i) for i in range(num_qb)]
     origin = generate_random_circuit(qubits, cir_depth, template)
+    origin.append(measure(*qubits, key='result'))
     print("Origin circuit:\n", origin)
 
     opt = transformers_dict[template](origin)
     print("Optimized circuit:\n", opt)
+    return origin, opt
 
+
+def compare_circuit_depth(origin, opt):
     # Compare the circuit depths
     depth1 = len(list(origin.all_operations()))
     depth2 = len(list(opt.all_operations()))
@@ -52,4 +58,18 @@ def simple_test(template):
     else:
         print("Optimizer did not reduce circuit depth.")
 
+    return
+
+def simulator_test(origin, opt):
+    simulator = Simulator()
+    origin_result = simulator.run(origin, repetitions=1000)
+    opt_result = simulator.run(opt, repetitions=1000)
+
+    fig, ax = plt.subplots()  # Create a figure and axis object
+    _ = plot_state_histogram(origin_result, ax)  # Use the axis object to plot the histogram
+    plt.savefig("origin")  # Save the figure
+
+    fig, ax = plt.subplots()  # Create a new figure and axis object for the next histogram
+    _ = plot_state_histogram(opt_result, ax)  # Use the axis object to plot the histogram
+    plt.savefig("opt")
     return
