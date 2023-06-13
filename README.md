@@ -4,10 +4,11 @@ A project on course Practicial quantum computing. Optimizing quantum circuit usi
 ## Intall cirq package
 ```python 
 !pip install cirq
-
+```
 ## Transformer template: 
 #### Template a: 
 ![image](https://github.com/huyenemma/optimizing-circuit/assets/54979206/e6ce00cc-9b02-412a-a14c-a18c349996f0)
+
 #### Templae b:
 ![image](https://github.com/huyenemma/optimizing-circuit/assets/54979206/06844e62-d446-4530-afd2-78a9ccdb134e)
 
