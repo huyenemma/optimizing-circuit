@@ -1,15 +1,18 @@
-# This is a sample Python script.
-
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-
-
-def print_hi(name):
-    # Use a breakpoint in the code line below to debug your script.
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+from transformer import *
+from randomCircuit import *
+from customGate import *
+from testing import *
+from cirq import *
 
 
-# Press the green button in the gutter to run the script.
+if __name__ == '__main__':
+    qubits = [LineQubit(i) for i in range(4)]
+    cir = generate_random_circuit(qubits, 9, 'a')
+    print(cir)
+    a = flip_cnot(cir)
+    #print(a)
+    b = cancel_adj_h(a)
+    #print(b)
+    opt = merge_flip_cnot(cir)
+    print(opt)
 
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/

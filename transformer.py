@@ -1,17 +1,105 @@
 import cirq
 from cirq import *
-from customGate import CXX
+from customGate import CXX, CXXX
 
 
-@cirq.transformer
 def merge_flip_cnot(circuit):
-    # opt_circuit = Circuit()
 
-    opt_circuit = synchronize_terminal_measurements(circuit)
-    return opt_circuit
+    opt_circuit = Circuit()
+    # dictionary to keep track CNOT gates on qubits in circuit
+    cnot_gates = {}
+    for moment in circuit:
+        for op in moment:
+            if isinstance(op.gate, CXPowGate):
+                control = op.qubits[0]
+                target = op.qubits[1]
+                if len(cnot_gates) <= 1:
+                    cnot_gates[(control, target)] = op
+                else:
+                    control1, target1 = list(cnot_gates.keys())[0]
+                    control2, target2 = list(cnot_gates.keys())[1]
+                    if control1 != control and control2 != control and control1 != control2 \
+                            and target1 == target and target2 == target:
+                        sub_circuit = Circuit()
+                        sub_circuit.append([CNOT(control1, target1), CNOT(control2, target2), CNOT(control, target)])
+                        opt_circuit.append(flip_cnot(sub_circuit))
+                        del cnot_gates[(control1, target1)]
+                        del cnot_gates[(control2, target2)]
+                        continue
+                    else:
+                        opt_circuit.append(cnot_gates[(control1, target1)])
+                        opt_circuit.append(cnot_gates[(control2, target2)])
+                        del cnot_gates[(control1, target1)]
+                        del cnot_gates[(control2, target2)]
+                        cnot_gates[(control, target)] = op
+            else:
+                qubit = op.qubits[0]
+                for key in cnot_gates.keys():
+                    control, target = key
+                    if qubit == target:
+                        opt_circuit.append(cnot_gates[(control, target)])
+                        del cnot_gates[(control, target)]
+                        break
+
+                # add the current operation
+                opt_circuit.append(op)
+
+    # add any remaining CNOT gates in the dictionary to the optimized circuit
+    for operation in cnot_gates.values():
+        if operation is not None:
+            opt_circuit.append(operation)
+
+    final_circuit = Circuit()
+    # after flip all CX gates in the template, now we use template b (cancel two adjacent H gates) to optimize
+    opt_circuit = cancel_adj_h(opt_circuit)
+
+    # merge all cnot gate which have same control to 1 CXXX gate
+    cnot_gates = {}
+    for moment in opt_circuit:
+        for op in moment:
+            if isinstance(op.gate, CXPowGate):
+                control = op.qubits[0]
+                target = op.qubits[1]
+                if len(cnot_gates) <= 1:
+                    cnot_gates[(control, target)] = op
+                    break
+                else:
+                    control1, target1 = list(cnot_gates.keys())[0]
+                    control2, target2 = list(cnot_gates.keys())[1]
+                    if control1 == control and control2 == control \
+                            and target1 != target and target2 != target and target1 != target2:
+                        final_circuit.append(CXXX().on(control, target, target1, target2))
+                        del cnot_gates[(control1, target1)]
+                        del cnot_gates[(control2, target2)]
+                        continue
+                    else:
+                        cnot_gates[(control, target)] = op
+                        if control1 != control or target1 == target:
+                            final_circuit.append(cnot_gates[(control1, target1)])
+                            del cnot_gates[(control1, target1)]
+                        if control2 != control or target2 == target:
+                            final_circuit.append(cnot_gates[(control2, target2)])
+                            del cnot_gates[(control2, target2)]
+                            cnot_gates[(control, target)] = op
+            else:
+                qubit = op.qubits[0]
+                for key in cnot_gates.keys():
+                    control, target = key
+                    if qubit == control or qubit == target:
+                        final_circuit.append(cnot_gates[(control, target)])
+                        del cnot_gates[(control, target)]
+                        break
+                # add the current operation
+                final_circuit.append(op)
+
+            # add any remaining CNOT gates in the dictionary to the optimized circuit
+            for operation in cnot_gates.values():
+                if operation is not None:
+                    final_circuit.append(operation)
+
+    return final_circuit
 
 
-@cirq.transformer
 def cancel_adj_h(circuit):
     """
     Apply the template b: a sequence of two Hadamard gate is cancelled
@@ -49,7 +137,6 @@ def cancel_adj_h(circuit):
     return opt_circuit
 
 
-@cirq.transformer
 def cancel_adj_cnot(circuit):
     """
     Apply the template c: a sequence of two CNOT gates is cancelled
@@ -95,7 +182,6 @@ def cancel_adj_cnot(circuit):
     return opt_circuit
 
 
-@cirq.transformer
 def two_cx_to_cxx(circuit):
     """
         Apply the template d: a sequence of two CNOT gates that share the same control qubit transforms to CXX gate
@@ -124,8 +210,8 @@ def two_cx_to_cxx(circuit):
                         cnot_gates[(control, target)] = op
                         if pre_control != control or pre_target == target:
                             opt_circuit.append(cnot_gates[(pre_control, pre_target)])
-                            opt_circuit.append(cnot_gates[(control, target)])
                             del cnot_gates[(pre_control, pre_target)]
+                            cnot_gates[(control, target)] = op
             else:
                 qubit = op.qubits[0]
                 for key in cnot_gates.keys():
@@ -145,7 +231,6 @@ def two_cx_to_cxx(circuit):
     return opt_circuit
 
 
-@cirq.transformer
 def flip_cnot(circuit):
     """
     Apply template e. Flip a cnot gate and add surrounding H gates on the qubit the CX gate applied
@@ -165,7 +250,6 @@ def flip_cnot(circuit):
     return opt_circuit
 
 
-@cirq.transformer
 def reverse_cnot_with_hgate(circuit):
     """
     Apply template f. When both control and target qubits of a CX gate sandwiched by Hadamard gates, we can delete

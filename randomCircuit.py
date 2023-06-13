@@ -17,10 +17,14 @@ def generate_random_circuit(qubits, depth, template):
     control = random.choice(qubits)
     template_added = False
     operations = []
-    for i in range(depth):
+    i = 0
+    while i < depth:
         template_new = generate_template(qubits, depth, template)
-        num = random.randint(0, len(gates))
+        if depth == len(template_new):
+            operations.extend(template_new)
+            break
 
+        num = random.randint(0, len(gates))
         if num == len(gates):
             gate = template_new
         else:
@@ -32,14 +36,17 @@ def generate_random_circuit(qubits, depth, template):
                 target = random.choice(qubits)
             operations.append(gate(control, target))
         elif gate == template_new:
-            operations.append(template_new)
+            operations.extend(template_new)
             template_added = True
         else:
-            print("current gate: ", gate)
             operations.append(gate(control))
 
-        if not template_added:
-            operations[0] = template_new
+        i = len(operations)
+
+        if depth - i == len(template_new) and not template_added:
+            operations.extend(template_new)
+            template_added = True
+            i = len(operations)
 
     circuit.append(operations)
     return circuit
@@ -51,6 +58,7 @@ def generate_template(qubits, depth, template):
 
     match template:
         case 'a':
+            # not yet finished
             if len(qubits) < 4 or depth < 9:
                 print("To use template a, you should have at least 4 qubits")
                 return
@@ -119,7 +127,3 @@ def generate_template(qubits, depth, template):
             return
 
 
-if __name__ == '__main__':
-    qubits = [LineQubit(i) for i in range(4)]
-    cir = generate_random_circuit(qubits, 10, 'a')
-    print(cir)
