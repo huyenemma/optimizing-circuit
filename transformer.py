@@ -47,11 +47,11 @@ def merge_flip_cnot(circuit):
     for operation in cnot_gates.values():
         if operation is not None:
             opt_circuit.append(operation)
-
+    print("First I flip all cnot gates (template e) in the circuit:\n", opt_circuit)
     final_circuit = Circuit()
     # after flip all CX gates in the template, now we use template b (cancel two adjacent H gates) to optimize
     opt_circuit = cancel_adj_h(opt_circuit)
-
+    print("Then I cancel all adjacent H gates in the circuit:\n", opt_circuit)
     # merge all cnot gate which have same control to 1 CXXX gate
     cnot_gates = {}
     for moment in opt_circuit:
@@ -300,11 +300,20 @@ def reverse_cnot_with_hgate(circuit):
                     gates_by_qubit[control] = ops2
 
     max_len = max(len(v) for v in gates_by_qubit.values())
+    two_qb_gate = []
     for i in range(max_len):
         for key in gates_by_qubit:
-            values = gates_by_qubit[key]
-            if i < len(values):
-                opt_circuit.append(values[i])
+            opers = gates_by_qubit[key]
+            if i < len(opers):
+                op = opers[i]
+                if len(op.qubits) == 2:
+                    if op in two_qb_gate:
+                        two_qb_gate.remove(op)
+                    else:
+                        two_qb_gate.append(op)
+                        opt_circuit.append(op)
+                else:
+                    opt_circuit.append(op)
 
     return opt_circuit
 
