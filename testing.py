@@ -40,10 +40,7 @@ def simple_test(template):
 
     opt = transformers_dict[template](origin)
     print("Optimized circuit:\n", opt)
-    return origin, opt
 
-
-def compare_circuit_depth(origin, opt):
     # Compare the circuit depths
     depth1 = len(list(origin.all_operations()))
     depth2 = len(list(opt.all_operations()))
@@ -60,8 +57,11 @@ def compare_circuit_depth(origin, opt):
 
 
 def simulator_test(origin, opt):
-    origin.measure_all()
-    opt.measure_all()
+    for qubit in origin.all_qubits():
+        origin.append(measure(qubit, key=str(qubit)))
+    for qubit in opt.all_qubits():
+        opt.append(measure(qubit, key=str(qubit)))
+
     simulator = Simulator()
     origin_result = simulator.run(origin, repetitions=1000)
     opt_result = simulator.run(opt, repetitions=1000)
@@ -75,3 +75,4 @@ def simulator_test(origin, opt):
     plt.savefig("opt")
 
     return
+

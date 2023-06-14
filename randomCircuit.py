@@ -47,6 +47,7 @@ def generate_random_circuit(qubits, depth, template):
             operations.extend(template_new)
             template_added = True
             i = len(operations)
+    circuit.append(operations)
     return circuit
 
 
