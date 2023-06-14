@@ -1,4 +1,3 @@
-import cirq
 from cirq import *
 from customGate import CXX, CXXX
 
