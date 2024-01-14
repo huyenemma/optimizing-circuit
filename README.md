@@ -1,5 +1,5 @@
 # optimizing-circuit
-A project on course Practicial quantum computing. Optimizing quantum circuit using circuit identities 
+A project on course Practicial quantum computing. Optimizing quantum circuit using Transformer
 
 ## Intall cirq package
 ```python 
